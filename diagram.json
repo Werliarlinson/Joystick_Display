@@ -106,7 +106,23 @@
       "left": -57.37,
       "attrs": { "i2cAddress": "0x3c" }
     },
-    { "type": "wokwi-vcc", "id": "vcc6", "top": 528.76, "left": 67.2, "attrs": {} }
+    { "type": "wokwi-vcc", "id": "vcc6", "top": 528.76, "left": 67.2, "attrs": {} },
+    { "type": "wokwi-analog-joystick", "id": "joystick1", "top": 172.2, "left": 111, "attrs": {} },
+    {
+      "type": "wokwi-led",
+      "id": "led1",
+      "top": 514.8,
+      "left": -293.8,
+      "attrs": { "color": "red" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r3",
+      "top": 570.65,
+      "left": -155,
+      "rotate": 180,
+      "attrs": { "value": "330" }
+    }
   ],
   "connections": [
     [ "pico:GP0", "$serialMonitor:RX", "", [] ],
@@ -203,7 +219,15 @@
     [ "oled1:GND", "pico:GND.4", "black", [ "v-19.2", "h-48", "v-57.6" ] ],
     [ "oled1:SDA", "pico:GP14", "blue", [ "v-38.4", "h-86.33", "v-38.4" ] ],
     [ "oled1:SCL", "pico:GP15", "green", [ "v-48", "h-57.3", "v-19.2" ] ],
-    [ "oled1:VCC", "vcc6:VCC", "red", [ "v-28.8", "h0.15" ] ]
+    [ "oled1:VCC", "vcc6:VCC", "red", [ "v-28.8", "h0.15" ] ],
+    [ "joystick1:VCC", "pico:3V3", "red", [ "v0" ] ],
+    [ "joystick1:GND", "pico:GND.6", "black", [ "v0" ] ],
+    [ "joystick1:VERT", "pico:GP27", "green", [ "v0" ] ],
+    [ "joystick1:HORZ", "pico:GP26", "green", [ "v0" ] ],
+    [ "joystick1:SEL", "pico:GP22", "green", [ "v0" ] ],
+    [ "led1:A", "pico:GP13", "green", [ "v9.6", "h38.4", "v-76.8" ] ],
+    [ "led1:C", "r3:2", "#8f4814", [ "v0" ] ],
+    [ "r3:1", "pico:GND.4", "black", [ "v0", "h9.6", "v-76.8" ] ]
   ],
   "dependencies": {}
 }

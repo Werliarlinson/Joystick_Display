@@ -49,7 +49,7 @@ pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(Joystick_Display Joystick_Display.c )
+add_executable(Joystick_Display Joystick_Display.c inc/ssd1306.c)
 
 pico_set_program_name(Joystick_Display "Joystick_Display")
 pico_set_program_version(Joystick_Display "0.1")
@@ -64,7 +64,11 @@ pico_enable_stdio_usb(Joystick_Display 1)
 # Add the standard library to the build
 target_link_libraries(Joystick_Display
         pico_stdlib
-        hardware_adc)
+        hardware_adc
+        pico_time
+        hardware_i2c
+        hardware_pio
+        hardware_pwm)
 
 # Add the standard include files to the build
 target_include_directories(Joystick_Display PRIVATE

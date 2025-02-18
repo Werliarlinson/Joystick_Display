@@ -34,6 +34,8 @@ static volatile bool flag_button = 0;       // Armazena o estado do botão
 uint32_t elapsed_time = 10000;              // Armazena o tempo decorrido em microsegundos (Padrão: 10s)
 static int32_t set_button = 0;              // Controlador de seleção das frases
 static bool leds_on = true;                 // Variável para armazenar o estado dos LEDs
+static bool matriz_on = true;               // Variável para armazenar o estado da Matriz de LED
+static volatile int ledIndex;               // Armazena a posição do joystick para a matriz
 
 // Estrutura para representar um pixel com componentes RGB
 struct pixel_t { 
@@ -105,12 +107,12 @@ void joystickInit()
 }
 
 // Função para obter a posição do joystick e mapear para o índice do LED
-int getJoystickLEDIndex(uint16_t *x_value, uint16_t *y_value) 
+void getJoystickLEDIndex(uint16_t *x_value, uint16_t *y_value) 
 {
-    adc_select_input(1);                                        // Selecionar o ADC para o eixo Y
+    adc_select_input(0);                                        // Selecionar o ADC para o eixo Y
     *y_value = adc_read();                                      // Ler valor do eixo Y
 
-    adc_select_input(0);                                        // Selecionar o ADC para o eixo X
+    adc_select_input(1);                                        // Selecionar o ADC para o eixo X
     *x_value = adc_read();                                      // Ler valor do eixo X
 
     // Calcular a intensidade do LED azul com base na posição Y
@@ -122,20 +124,25 @@ int getJoystickLEDIndex(uint16_t *x_value, uint16_t *y_value)
     int16_t red_intensity = (int16_t)(*x_value) - 2048;
     if (red_intensity < 0) red_intensity = -red_intensity;
     red_intensity = red_intensity * 255 / 2048;
-
+    //Depuração dos valores gerados pelo joystick
+    //printf("red: %d, blue: %d\n", red_intensity, blue_intensity);
     // Definir a intensidade dos LEDs usando PWM
-    set_pwm_us(LED_AZUL, blue_intensity * 20000 / 255);
-    set_pwm_us(LED_VERMELHO, red_intensity * 20000 / 255);
+    set_pwm_us(LED_AZUL, blue_intensity * 20000 / 256);
+    set_pwm_us(LED_VERMELHO, red_intensity * 20000 / 256);
 
     // Mapear valores do joystick (0-4095) para os índices da matriz (0-24)
-    int row = *x_value * 5 / 4096;                         // Mapear eixo X para as linhas
-    int col = (4096 - *y_value) * 5 / 4096;                // Mapear eixo Y para as colunas (invertido)
+    int row =  *x_value * 5 / 4096;                         // Mapear eixo X para as linhas
+    int col =  (4096 - *y_value) * 5 / 4096;                // Mapear eixo Y para as colunas (invertido)
 
     // Garantir que os índices estejam dentro dos limites
     if (row >= 5) row = 4;                                // Limitar valor máximo das linhas
     if (col >= 5) col = 4;                                // Limitar valor máximo das colunas
 
-    return row * 5 + col;  
+    if (col % 2 == 0) {
+        ledIndex = 24-(col * 5 + row);              // Linha par (esquerda para direita).
+    } else {
+        ledIndex = 24-(col * 5 + (4 - row));        // Linha ímpar (direita para esquerda).
+    }
 }
 
 // Função para configurar PWM no pino especificado com um período desejado
@@ -162,7 +169,9 @@ void set_pwm_us(uint gpio, uint16_t us)
     uint32_t clock = clock_get_hz(clk_sys);
     uint32_t top = pwm_hw->slice[slice_num].top;          // Valor máximo do contador PWM
     uint32_t level = (us * (top + 1)) / 20000;            // 20000us é o período de 20ms
-
+    //Depuração dos niveis gerados
+    //printf("set_pwm_us - gpio: %d, us: %d, clock: %d, top: %d, level: %d\n", gpio, us, clock, top, level);
+    
     pwm_set_gpio_level(gpio, level);
 }
 
@@ -177,15 +186,15 @@ void gpio_irq_handler(uint gpio, uint32_t events) {
        
         last_time = current_time;
         
-        if (gpio == button_B) {                                         // Avança para a próxima combinação
-            
+        if (gpio == button_B) {                                         // Alterna a atividade da Matriz de Leds
+            matriz_on = !matriz_on;
             set_button = 3;
         } 
-        if (gpio == button_A) {                                         // Retrocede para a combinação anterior
+        if (gpio == button_A) {                                         // Alterna a atividade dos Leds RGB
             leds_on = !leds_on;
             set_button = 2;
         }
-        if (gpio == button_joy) {                                       // Reseta a combinação
+        if (gpio == button_joy) {                                       // Ativa o led Verde e muda paleta do display
             gpio_put(LED_VERDE, !gpio_get(LED_VERDE));
             set_button = 1;
         }
@@ -200,7 +209,6 @@ int main()
     npWrite();                                            // Atualizar o estado inicial dos LEDs
 
     // Configura PWM para um período de 20ms (50Hz)
-    configure_pwm(LED_VERDE, 20.0f);
     configure_pwm(LED_AZUL, 20.0f);
     configure_pwm(LED_VERMELHO, 20.0f);
     
@@ -220,12 +228,8 @@ int main()
     ssd1306_send_data(&ssd);
 
     // Configura os pinos para o LED RGB (11, 12 e 13) como saída digital.
-    gpio_init(LED_AZUL);
-    gpio_set_dir(LED_AZUL, GPIO_OUT);
     gpio_init(LED_VERDE);
     gpio_set_dir(LED_VERDE, GPIO_OUT);
-    gpio_init(LED_VERMELHO);
-    gpio_set_dir(LED_VERMELHO, GPIO_OUT);
 
     // Configura o pino dos butões como entrada digital.
     gpio_init(button_A);
@@ -257,7 +261,7 @@ int main()
         getJoystickLEDIndex(&x_value, &y_value);          // Obter os valores do joystick
 
         // Mapear valores do joystick (0-4095) para a resolução do display (0-127 para x, 0-63 para y)
-        uint8_t x_pos = (4096 - x_value) * WIDTH / 4096;
+        uint8_t x_pos = x_value * WIDTH / 4096;
         uint8_t y_pos = (4096 - y_value) * HEIGHT / 4096;
 
         // Garantir que o pixel não ultrapasse o retângulo
@@ -266,26 +270,29 @@ int main()
         if (y_pos < 3) y_pos = 6;
         if (y_pos > 58) y_pos = 55;
 
-        // Limpar o display e desenhar o pixel na nova posição
+        // Display que acompanha o Joystick
         ssd1306_fill(&ssd, !cor);
         ssd1306_rect(&ssd, 3, 3, 122, 58, cor, !cor);
+        // Mudança caso deseje em um ponto ou para letra o para melhor visibilidade
         //ssd1306_pixel(&ssd, x_pos, y_pos, true);
         ssd1306_draw_char(&ssd, 'o', x_pos-3, y_pos-3);
         ssd1306_send_data(&ssd);
         
+        // Led da Matriz acompanha o Joystick
+        if(matriz_on){
+            npClear();                                        // Limpar todos os LEDs
+            npSetLED(ledIndex, 0, 100, 0);                    // Acender o LED correspondente (verde)
+            npWrite();                                        // Atualizar LEDs
+        } else {
+            npClear();                                        // Limpar todos os LEDs
+            npWrite();                                        // Atualizar LEDs
+        }
+
         if(flag_button) {                                                                    // Evento para verificar o botão foi acionado
             flag_button = false;                                                             // Reseta a flag
             // Verifica se o botão foi pressionado (nível baixo no pino) para emissão da mensagem.
             if (set_button == 1) {
                 cor = !cor;
-            }
-            if (set_button == 2) {
-                
-                if(gpio_get(LED_AZUL) == 1) {
-                    
-                } else {
-                    
-                }
             }
             set_button = 0;                                                                  // Reseta o valor do botão
             // Reseta o tempo de espera para a mensagem padrão

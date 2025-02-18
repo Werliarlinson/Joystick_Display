@@ -23,11 +23,11 @@ diagram.json e clique no botão verde para iniciar a simulação.
 Enquanto na simulação, o usuário pode clicar nos botões dispostos na simulação
 a fim de acender os leds conectados à placa.
 
-O botão azul irá acionar o led azul e em decorrencia desse eveto irá emitir uma imagem na tela e terminal
+O botão azul (Botão B) irá acionar ou desativar a Matriz led (verde).
 
-O botão verde irá acionar o led verde e em decorrencia desse eveto irá emitir uma imagem na tela e terminal
+O botão verde (Botão A) irá acionar ou desativar o led RGB (vermelho e azul apenas).
 
-Digitando um caractere alfanumérico no terminal irá ligar os Leds da Matriz WS2812B de maneira correspondente ao simbolo
-Como também irá exibir uma mensagem no terminal e na tela SSD1306
+O botão do Joystick alternará o estado do led verde do RGB e fará o display ficar com as bordas mais espersas ou não.
 
-Os botões operam por interrupção e a tela irá resetar por meio de um temporizador que se adequa a atividade
+Movendo o Joystick mudará a posição de um simbolo do display e do led acionado na matriz de acordo com sua posição.
+
